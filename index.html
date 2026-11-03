@@ -43,7 +43,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#2f5a22;font-family:"P
 <div class="ov on" id="home"><img src="assets/hero.png"><div class="t">飞剑守村</div><div class="s">点飞剑·按箭头方向出鞘·守住村口</div>
 <div class="card" style="min-width:290px"><div class="rule">① 每把飞剑带<b>方向箭头</b>，点它就沿箭头飞出<br>② 路线上有别的剑挡着会<b>受阻</b>（怪物趁机前进）<br>③ <b>↑</b>剑打上方路、<b>→</b>剑打右侧路，命中当段怪物<b>伤害×2</b><br>④ ←↓剑弹射追踪，伤害减半——先后顺序就是策略</div>
 <div class="btn" id="startBtn">开始守村</div><div id="best" style="margin-top:10px;font-weight:800"></div></div></div>
-<div class="ov" id="menu"><div class="card"><h2>暂停</h2><div class="btn" id="resume">继续</div><div class="btn g" id="restart">重新开始</div><div class="btn g" id="toHome">回到首页</div></div></div>
+<div class="ov" id="menu"><div class="card"><h2>暂停</h2><div class="btn" id="resume">继续</div><div class="btn y" id="muteBtn">🔊 声音：开</div><div class="btn g" id="restart">重新开始</div><div class="btn g" id="toHome">回到首页</div></div></div>
 <div class="ov" id="over"><div class="card"><h2 id="overT">村口失守！</h2><div id="overS"></div><div class="btn y" id="revBtn">看广告复活（+3❤ +6剑）</div><div class="btn" id="again">再来一局</div></div></div>
 <div class="ov" id="adov"><div>📺 广告播放中…</div><div id="adCnt" style="font-size:48px;margin-top:10px">3</div></div>
 </div>
@@ -79,6 +79,44 @@ function resize(){const r=$('wrap').getBoundingClientRect();W=r.width;H=r.height
 addEventListener('resize',resize);resize();
 function pathPos(s){if(s<L.seg1)return[s-40,L.ty];return[L.rx,L.ty+(s-L.seg1)];}
 function cellXY(c,r){return[L.gx+(c+.5)*L.cs,L.gy0+(r+.5)*L.cs];}
+
+// ---------- audio (WebAudio synth)
+const SND={ctx:null,master:null,muted:safeGet('fj_mute')==='1',bgm:null};
+function aInit(){if(SND.ctx){if(SND.ctx.state!=='running')SND.ctx.resume();return;}const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;const c=SND.ctx=new AC();
+ SND.master=c.createGain();SND.master.gain.value=SND.muted?0:.6;const comp=c.createDynamicsCompressor();SND.master.connect(comp);comp.connect(c.destination);
+ const b=c.createBuffer(1,1,22050);const s=c.createBufferSource();s.buffer=b;s.connect(c.destination);s.start(0);startBGM();}
+['touchstart','pointerdown','click'].forEach(e=>addEventListener(e,aInit,{capture:true,passive:true}));
+document.addEventListener('visibilitychange',()=>{if(!SND.ctx)return;document.hidden?SND.ctx.suspend():SND.ctx.resume();});
+function tone(f,d,{type='sine',v=.3,f2=null,at=0,dst=null}={}){const c=SND.ctx;if(!c)return;const t=c.currentTime+at,o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.008);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(dst||SND.master);o.start(t);o.stop(t+d+.02);}
+let NB=null;function noise(d,{v=.3,f=1500,q=1,type='bandpass',f2=null,at=0}={}){const c=SND.ctx;if(!c)return;if(!NB){NB=c.createBuffer(1,c.sampleRate,c.sampleRate);const a=NB.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1;}
+ const t=c.currentTime+at,s=c.createBufferSource(),fl=c.createBiquadFilter(),g=c.createGain();s.buffer=NB;fl.type=type;fl.Q.value=q;fl.frequency.setValueAtTime(f,t);if(f2)fl.frequency.exponentialRampToValueAtTime(f2,t+d);
+ g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);s.connect(fl);fl.connect(g);g.connect(SND.master);s.start(t);s.stop(t+d+.02);}
+const sfx={
+ launch(){noise(.22,{v:.25,f:800,f2:4000,q:2});tone(500,.15,{type:'triangle',v:.08,f2:1200});},
+ hit(combo,big){const p=Math.pow(1.06,Math.min(14,combo));noise(.08,{v:.35,f:900,type:'lowpass'});tone(180*p,.12,{type:'square',v:.1,f2:90*p});tone(660*p,.1,{type:'triangle',v:big?.14:.08});},
+ blocked(){tone(160,.18,{type:'square',v:.16,f2:70});noise(.1,{v:.2,f:300,type:'lowpass'});},
+ pop(){tone(400,.15,{type:'sine',v:.22,f2:1100});noise(.12,{v:.15,f:2500,q:3});},
+ coin(){tone(1320,.08,{type:'square',v:.06});tone(1760,.18,{type:'square',v:.06,at:.07});},
+ bossHit(){tone(90,.3,{type:'sawtooth',v:.16,f2:45});noise(.2,{v:.3,f:400,type:'lowpass'});},
+ roar(){tone(110,.9,{type:'sawtooth',v:.18,f2:55});tone(116,.9,{type:'sawtooth',v:.12,f2:50});noise(.8,{v:.15,f:600,f2:200,type:'lowpass'});},
+ wave(){[523,659,784].forEach((f,i)=>tone(f,.18,{type:'triangle',v:.15,at:i*.09}));},
+ clear(){[523,659,784,1047].forEach((f,i)=>tone(f,.25,{type:'square',v:.07,at:i*.1}));tone(1047,.5,{type:'triangle',v:.15,at:.4});tone(1319,.5,{type:'triangle',v:.1,at:.4});},
+ life(){tone(440,.35,{type:'sawtooth',v:.12,f2:150});noise(.25,{v:.2,f:500,type:'lowpass'});},
+ tap(){tone(880,.06,{type:'triangle',v:.12});},
+ reward(){[784,988,1175,1568].forEach((f,i)=>tone(f,.2,{type:'triangle',v:.13,at:i*.07}));noise(.4,{v:.08,f:6000,q:1,at:.1});},
+ over(){[392,370,330,262].forEach((f,i)=>tone(f,.35,{type:'triangle',v:.15,at:i*.22}));}
+};
+function startBGM(){const c=SND.ctx;if(SND.bgm)return;const g=c.createGain();g.gain.value=.22;g.connect(SND.master);SND.bgm=g;
+ const mel=[72,76,79,76,74,77,81,77,72,76,79,84,83,79,76,74],bass=[48,48,53,53,55,55,48,48];const bpm=124,st=60/bpm/2;let n=0,next=c.currentTime+.1;
+ const m2f=m=>440*Math.pow(2,(m-69)/12);
+ setInterval(()=>{if(c.state!=='running')return;while(next<c.currentTime+.3){const i=n%32;
+   if(i%2===0&&!(i%8===6&&Math.random()<.5))tone(m2f(mel[(i/2)%16]),st*1.6,{type:'triangle',v:.16,at:next-c.currentTime,dst:g});
+   if(i%4===0)tone(m2f(bass[(i/4)%8]),st*3,{type:'sine',v:.3,at:next-c.currentTime,dst:g});
+   if(i%4===2)noise(.04,{v:.05,f:7000,q:1,type:'highpass',at:next-c.currentTime});
+   next+=st;n++;}},100);}
+function setMute(m){SND.muted=m;safeSet('fj_mute',m?'1':'0');if(SND.master)SND.master.gain.value=m?0:.6;$('muteBtn').textContent=m?'🔇 声音：关':'🔊 声音：开';}
+
 // ---------- state
 let G=null,best=+(safeGet('fj_best')||0);
 function safeGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
@@ -114,7 +152,7 @@ function nextWave(){G.wave++;G.grid=genGrid(G.wave);if(!solveCheck(G.grid))conso
  if(boss){const b=q.shift();q.splice(Math.floor(q.length*.4),0,b);}
  const gap=Math.max(1.1,2.6-G.wave*.12);G.spawnQ=q.map((e,i)=>({...e,at:G.t+1.2+i*gap}));G.total=q.length;
  G.speedMul=Math.min(1.9,.9+G.wave*.07);
- toast(boss?'⚠ 第'+G.wave+'波 · 甲虫魔王来袭':'第 '+G.wave+' 波',1400);ui();}
+ boss?setTimeout(sfx.roar,300):0;sfx.wave();toast(boss?'⚠ 第'+G.wave+'波 · 甲虫魔王来袭':'第 '+G.wave+' 波',1400);ui();}
 function cnt(){return G.grid.flat().filter(v=>v>=0).length}
 function ui(){if(!G)return;$('waveT').textContent='第 '+G.wave+' 波';$('coinT').textContent=G.coins;$('swT').textContent='剩余 '+cnt();
  $('lives').textContent='❤'.repeat(Math.max(0,G.lives))+'🤍'.repeat(Math.max(0,5-G.lives));$('adBtn').classList.toggle('pulse',cnt()<=3&&G.en.length+G.spawnQ.length>0);}
@@ -125,10 +163,10 @@ cv.addEventListener('pointerdown',e=>{if(!G||G.over||paused)return;const b=cv.ge
  const s=G.sw.find(s=>s.c===c&&s.r===r);const bl=blocker(G.grid,c,r,d);
  if(bl){// blocked: bump toward blocker, shake, enemies advance
   s.bump=0.001;s.bd=d;s.bdist=(Math.abs(bl[0]-c)+Math.abs(bl[1]-r)-.55)*L.cs;const bs=G.sw.find(q=>q.c===bl[0]&&q.r===bl[1]);bs.fl=.5;bs.jit=.35;
-  G.combo=0;G.misplay++;G.shake=Math.max(G.shake,5);for(const en of G.en)en.s+=L.cs*.35;toast('受阻！怪物前进',700,'#ffb0a0');return;}
+  G.combo=0;G.misplay++;G.shake=Math.max(G.shake,5);for(const en of G.en)en.s+=L.cs*.35;toast('受阻！怪物前进',700,'#ffb0a0');sfx.blocked();return;}
  G.grid[r][c]=-1;const [px,py]=cellXY(c,r);
  const precise=d<2;const tgt=pickTarget(d,px,py);
- G.pr.push({x:px,y:py,d,vx:DX[d],vy:DY[d],sp:W*2.2,t:0,tr:[],tgt,precise,phase:0});
+ sfx.launch();G.pr.push({x:px,y:py,d,vx:DX[d],vy:DY[d],sp:W*2.2,t:0,tr:[],tgt,precise,phase:0});
  for(let i=0;i<8;i++)G.fx.push({x:px,y:py,vx:rnd(-80,80),vy:rnd(-80,80),l:.4,ml:.4,c:COL[d][0],r:rnd(2,5)});
  ui();});
 function onTop(en){return en.s<L.seg1}
@@ -142,7 +180,7 @@ function update(dt){G.t+=dt;
  while(G.spawnQ.length&&G.spawnQ[0].at<=G.t){const q=G.spawnQ.shift();G.en.push({k:q.k,hp:q.hp,mhp:q.hp,s:0,ph:Math.random()*6,hf:0,kb:0});}
  const base=L.len/24;
  for(const en of G.en){en.s+=base*ETYPE[en.k].sp*G.speedMul*dt*(en.kb>0?.2:1);en.kb-=dt;en.ph+=dt*8*ETYPE[en.k].sp;en.hf-=dt;
-  if(en.s>=L.len&&en.hp>0){en.hp=0;en.gone=1;const loss=en.k==='boss'?3:1;G.lives-=loss;G.shake=12;toast('村口受损 -'+loss+'❤',900,'#ff8070');G.heroHit=.5;}}
+  if(en.s>=L.len&&en.hp>0){en.hp=0;en.gone=1;const loss=en.k==='boss'?3:1;G.lives-=loss;G.shake=12;sfx.life();toast('村口受损 -'+loss+'❤',900,'#ff8070');G.heroHit=.5;}}
  G.en=G.en.filter(e=>e.hp>0||e.dead>0);for(const e of G.en)if(e.hp<=0)e.dead-=dt;
  for(const p of G.pr){p.t+=dt;p.tr.push([p.x,p.y]);if(p.tr.length>14)p.tr.shift();
   if(p.tgt&&p.tgt.hp<=0)p.tgt=pickTarget(p.d,p.x,p.y);
@@ -160,18 +198,18 @@ function update(dt){G.t+=dt;
  for(const s of G.sw){if(s.bump){s.bump+=dt;if(s.bump>.3)s.bump=0;}s.fl-=dt;s.jit=(s.jit||0)-dt;}
  G.shake=Math.max(0,G.shake-dt*30);G.heroHit=(G.heroHit||0)-dt;
  if(G.lives<=0)return gameOver();
- if(!G.en.length&&!G.spawnQ.length&&!G.pr.length&&!G.clearing){G.clearing=1;const bonus=cnt()*5;G.coins+=10+bonus;toast('第'+G.wave+'波 守住！'+(bonus?' 剩剑+'+bonus+'金':''),1300,'#fff3a0');setTimeout(()=>{G.clearing=0;nextWave();},1500);}
+ if(!G.en.length&&!G.spawnQ.length&&!G.pr.length&&!G.clearing){G.clearing=1;sfx.clear();const bonus=cnt()*5;G.coins+=10+bonus;toast('第'+G.wave+'波 守住！'+(bonus?' 剩剑+'+bonus+'金':''),1300,'#fff3a0');setTimeout(()=>{G.clearing=0;nextWave();},1500);}
  ui();}
 function hit(p){const en=p.tgt;const segOk=p.precise&&((p.d===0&&onTop(en))||(p.d===1&&!onTop(en)));
  if(G.t-G.lastHit<1.6)G.combo++;else G.combo=1;G.lastHit=G.t;
  let dmg=segOk?2:1;if(G.combo>=5)dmg+=1;
- en.hp-=dmg;en.hf=.12;en.kb=.15;const [ex,ey]=pathPos(en.s);
+ en.hp-=dmg;en.hf=.12;en.k==='boss'?sfx.bossHit():sfx.hit(G.combo,segOk);en.kb=.15;const [ex,ey]=pathPos(en.s);
  G.nums.push({x:ex+rnd(-10,10),y:ey-30,t:'-'+dmg,l:.8,c:segOk?'#ffe14a':'#ffffff',big:segOk});
  if(G.combo>=3)G.nums.push({x:ex,y:ey-58,t:'连击×'+G.combo,l:.9,c:'#ff7ad0',big:1});
  G.shake=Math.max(G.shake,segOk?4:2);
  for(let i=0;i<14;i++){const a=rnd(0,6.3),v=rnd(80,260);G.fx.push({x:ex,y:ey,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:.35,ml:.35,c:i%2?COL[p.d][0]:'#fff',r:rnd(2,5)});}
  G.fx.push({ring:1,x:ex,y:ey,l:.25,ml:.25,c:COL[p.d][0]});
- if(en.hp<=0){en.dead=.35;G.kills++;const c=ETYPE[en.k].coin;G.coins+=c;G.shake=Math.max(G.shake,en.k==='boss'?16:6);
+ if(en.hp<=0){en.dead=.35;G.kills++;sfx.pop();setTimeout(sfx.coin,120);const c=ETYPE[en.k].coin;G.coins+=c;G.shake=Math.max(G.shake,en.k==='boss'?16:6);
   for(let i=0;i<Math.min(8,c);i++)G.fx.push({coin:1,x:ex,y:ey,vx:rnd(-120,120),vy:rnd(-260,-120),g:600,l:.7,ml:.7,r:7});
   G.nums.push({x:ex,y:ey-80,t:'+'+c+'★',l:.9,c:'#ffd23a',big:1});
   if(en.k==='boss')toast('击败甲虫魔王！',1200,'#fff3a0');}}
@@ -226,9 +264,9 @@ function ad(cb){const o=$('adov');o.classList.add('on');paused=true;let n=3;$('a
 function addSix(){let added=0;const cells=[];for(let r=L.rows-1;r>=0;r--)for(let c=0;c<L.cols;c++)if(G.grid[r][c]<0)cells.push([c,r]);cells.sort(()=>Math.random()-.5);
  for(const [c,r] of cells){if(added>=6)break;const o=[0,1].filter(d=>clearPath(G.grid,c,r,d));const d=o.length?o[Math.random()*o.length|0]:[2,3].find(d=>clearPath(G.grid,c,r,d));if(d==null)continue;G.grid[r][c]=d;added++;
   const [x,y]=cellXY(c,r);for(let i=0;i<10;i++)G.fx.push({x,y,vx:rnd(-120,120),vy:rnd(-120,120),l:.5,ml:.5,c:COL[d][0],r:4});}
- toast('+'+added+' 飞剑！',900,'#fff3a0');ui();}
+ sfx.reward();toast('+'+added+' 飞剑！',900,'#fff3a0');ui();}
 $('adBtn').onclick=()=>{if(!G||G.over)return;ad(addSix);};
-function gameOver(){G.over=true;const sc=G.wave;if(sc>best){best=sc;safeSet('fj_best',best);}$('overT').textContent='村口失守！';$('overS').innerHTML='坚守到 <b>第 '+G.wave+' 波</b> · 击败 '+G.kills+' 只<br>最高纪录：第 '+best+' 波';$('revBtn').style.display=G.revived?'none':'block';$('over').classList.add('on');}
+function gameOver(){G.over=true;sfx.over();const sc=G.wave;if(sc>best){best=sc;safeSet('fj_best',best);}$('overT').textContent='村口失守！';$('overS').innerHTML='坚守到 <b>第 '+G.wave+' 波</b> · 击败 '+G.kills+' 只<br>最高纪录：第 '+best+' 波';$('revBtn').style.display=G.revived?'none':'block';$('over').classList.add('on');}
 $('revBtn').onclick=()=>ad(()=>{G.revived=true;G.over=false;G.lives=3;for(const e of G.en)e.s=Math.min(e.s,L.seg1*.3);addSix();$('over').classList.remove('on');ui();});
 $('again').onclick=()=>{$('over').classList.remove('on');newGame();};
 $('startBtn').onclick=()=>{$('home').classList.remove('on');newGame();};
@@ -237,6 +275,7 @@ $('resume').onclick=()=>{paused=false;last=performance.now();$('menu').classList
 $('restart').onclick=()=>{$('menu').classList.remove('on');paused=false;newGame();};
 $('toHome').onclick=()=>{$('menu').classList.remove('on');paused=false;G=null;$('home').classList.add('on');};
 $('best').textContent=best?'最高纪录：第 '+best+' 波':'';
-window.__fj={get G(){return G},nextWave,cellXY,L,solveCheck,genGrid};
+document.querySelectorAll('.btn,#adBtn,#setBtn').forEach(b=>b.addEventListener('click',()=>sfx.tap()));$('muteBtn').onclick=()=>setMute(!SND.muted);setMute(SND.muted);
+window.__fj={SND,sfx,get G(){return G},nextWave,cellXY,L,solveCheck,genGrid};
 requestAnimationFrame(step);
 </script></body></html>
