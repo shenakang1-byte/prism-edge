@@ -147,10 +147,13 @@ function update(dt){G.t+=dt;
  for(const p of G.pr){p.t+=dt;p.tr.push([p.x,p.y]);if(p.tr.length>14)p.tr.shift();
   if(p.tgt&&p.tgt.hp<=0)p.tgt=pickTarget(p.d,p.x,p.y);
   const outGrid=p.x<L.gx-L.cs*.2||p.x>L.gx+L.cs*L.cols+L.cs*.2||p.y<L.gy0-L.cs*.2||p.y>L.gy0+L.cs*L.rows+L.cs*.2;
-  if(outGrid)p.phase=1;
-  if(p.phase&&p.tgt){const [ex,ey]=pathPos(p.tgt.s);const ax=ex-p.x,ay=ey-p.y,dl=Math.hypot(ax,ay)||1;const k=Math.min(1,dt*(p.precise?14:7));p.vx+=(ax/dl-p.vx)*k;p.vy+=(ay/dl-p.vy)*k;const n=Math.hypot(p.vx,p.vy);p.vx/=n;p.vy/=n;
+  if(outGrid&&!p.phase){p.phase=1;if(!p.precise){p.vx=-p.vx*.3+(p.d===3?0:.6);p.vy=-p.vy*.3+(p.d===2?-.6:0);for(let i=0;i<8;i++)G.fx.push({x:p.x,y:p.y,vx:rnd(-120,120),vy:rnd(-120,120),l:.3,ml:.3,c:'#fff',r:3});}}
+  if(!p.tgt||p.tgt.hp<=0)p.tgt=pickTarget(p.d,p.x,p.y);
+  if(p.phase)p.life=(p.life||0)+dt;
+  if(p.phase&&p.tgt){const [ex,ey]=pathPos(p.tgt.s);const ax=ex-p.x,ay=ey-p.y,dl=Math.hypot(ax,ay)||1;const k=Math.min(1,dt*(p.precise?14:9+p.life*20));p.vx+=(ax/dl-p.vx)*k;p.vy+=(ay/dl-p.vy)*k;const n=Math.hypot(p.vx,p.vy);p.vx/=n;p.vy/=n;
    if(dl<L.cs*.5){hit(p);p.done=1;}}
-  p.x+=p.vx*p.sp*dt;p.y+=p.vy*p.sp*dt;if(p.x<-50||p.x>W+50||p.y<-50||p.y>H+50)p.done=1;}
+  p.x+=p.vx*p.sp*dt;p.y+=p.vy*p.sp*dt;if(p.x<-30||p.x>W+30||p.y<-30||p.y>H+30){if(p.tgt){p.x=Math.max(-30,Math.min(W+30,p.x));p.y=Math.max(-30,Math.min(H+30,p.y));}else p.done=1;}
+  if(!p.tgt&&!G.en.length&&!G.spawnQ.length)p.done=1; if(!p.tgt&&G.spawnQ.length&&p.phase){p.vx*=.9;p.vy*=.9;const n=Math.hypot(p.vx,p.vy)||1;p.vx/=n;p.vy/=n;}}
  G.pr=G.pr.filter(p=>!p.done);
  for(const f of G.fx){f.l-=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=f.g?f.g*dt:0;}G.fx=G.fx.filter(f=>f.l>0);
  for(const n of G.nums){n.l-=dt;n.y-=40*dt;}G.nums=G.nums.filter(n=>n.l>0);
