@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>棱刃防线</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;background:#0b1220;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;touch-action:manipulation}
+#app{max-width:420px;margin:0 auto;height:100%;position:relative;background:linear-gradient(180deg,#132038 0%,#0b1220 55%,#081018 100%);color:#e8f0ff}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:12px 14px 18px}
+.hidden{display:none!important}
+h1{font-size:28px;font-weight:900;letter-spacing:1px;text-align:center;margin-top:18px}
+h1 span{background:linear-gradient(90deg,#5eead4,#60a5fa,#a78bfa);-webkit-background-clip:text;color:transparent}
+.sub{text-align:center;color:#8aa0c2;font-size:13px;margin:8px 0 22px;line-height:1.5}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:14px 16px;font-size:17px;font-weight:800;color:#041018;background:linear-gradient(180deg,#5eead4,#2dd4bf);box-shadow:0 6px 0 #0f766e,0 10px 24px rgba(45,212,191,.25);margin:8px 0;cursor:pointer}
+.btn:active{transform:translateY(3px);box-shadow:0 3px 0 #0f766e}
+.btn.sec{background:linear-gradient(180deg,#64748b,#475569);color:#fff;box-shadow:0 6px 0 #1e293b}
+.btn.ad{background:linear-gradient(180deg,#fbbf24,#f59e0b);box-shadow:0 6px 0 #b45309;color:#1c1405}
+.btn.danger{background:linear-gradient(180deg,#fb7185,#e11d48);box-shadow:0 6px 0 #9f1239;color:#fff}
+.pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;color:#c7d7f0}
+.topbar{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.topbar .grow{flex:1}
+.score{font-size:26px;font-weight:900;text-align:center;line-height:1;color:#f8fafc;text-shadow:0 0 18px rgba(94,234,212,.45)}
+.meta{text-align:center;font-size:12px;color:#8aa0c2;margin:4px 0 8px;font-weight:700}
+.stage{position:relative;flex:1;min-height:0;border-radius:18px;overflow:hidden;border:2px solid rgba(94,234,212,.25);background:#16304a;box-shadow:inset 0 0 40px rgba(0,0,0,.35)}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.hud{display:flex;gap:8px;margin-top:10px}
+.hud .card{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:8px;text-align:center}
+.hud .card b{display:block;font-size:16px;font-weight:900;color:#5eead4}
+.hud .card span{font-size:11px;color:#8aa0c2}
+.toast{position:absolute;left:50%;top:18%;transform:translate(-50%,-20px);background:rgba(8,16,28,.92);color:#fff;padding:8px 14px;border-radius:10px;font-size:13px;font-weight:800;opacity:0;pointer-events:none;transition:.2s;z-index:20;border:1px solid rgba(94,234,212,.35)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.fxword{position:absolute;left:50%;top:36%;transform:translate(-50%,0) scale(.6);font-size:34px;font-weight:900;font-style:italic;pointer-events:none;z-index:25;-webkit-text-stroke:2px #041018;color:#5eead4;opacity:0}
+.fxword.show{animation:pop 900ms ease-out forwards}
+.fxword.exc{color:#a78bfa}.fxword.unb{color:#fbbf24;font-size:38px}
+@keyframes pop{0%{opacity:0;transform:translate(-50%,10px) scale(.4)}20%{opacity:1;transform:translate(-50%,0) scale(1.12)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-36px) scale(1)}}
+.mask{position:absolute;inset:0;background:rgba(4,10,20,.72);display:flex;align-items:center;justify-content:center;z-index:40;padding:18px}
+.modal{width:100%;background:linear-gradient(180deg,#1a2740,#101a2c);border:1px solid rgba(94,234,212,.3);border-radius:18px;padding:18px 16px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.modal h2{font-size:22px;margin-bottom:6px}
+.modal p{color:#8aa0c2;font-size:13px;line-height:1.5;margin:6px 0 12px}
+.adsim{position:absolute;inset:0;background:#050b14;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.adsim .t{font-size:48px;font-weight:900;color:#5eead4}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 8px}
+.legend .item{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border-radius:10px;padding:8px;font-size:12px;color:#c7d7f0}
+.swatch{width:18px;height:18px;border-radius:4px;border:2px solid #041018;box-shadow:0 0 0 1px rgba(255,255,255,.2)}
+.tips{font-size:12px;color:#8aa0c2;line-height:1.55;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- HOME -->
+  <div id="home" class="screen">
+    <h1>棱<span>刃</span>防线</h1>
+    <div class="sub">把能量刃种进草坪 · 点一下射出直线光束<br/>挡住沿 L 形轨道逼近的几何机群</div>
+    <div class="legend">
+      <div class="item"><i class="swatch" style="background:#34d399"></i>翠绿刃 · 基础</div>
+      <div class="item"><i class="swatch" style="background:#38bdf8"></i>冰蓝刃 · 穿透</div>
+      <div class="item"><i class="swatch" style="background:#a78bfa"></i>紫晶刃 · 溅射</div>
+      <div class="item"><i class="swatch" style="background:#fbbf24"></i>金核刃 · 重击</div>
+    </div>
+    <button class="btn" id="btnStart">开始防线</button>
+    <button class="btn sec" id="btnHow">玩法说明</button>
+    <div class="tips">原创题材：几何废土机甲防线 · 非修仙 · 非原作素材<br/>最高分 <b id="bestHome">0</b></div>
+  </div>
+
+  <!-- PLAY -->
+  <div id="play" class="screen hidden">
+    <div class="topbar">
+      <span class="pill" id="wavePill">波次 1</span>
+      <span class="grow"></span>
+      <span class="pill" id="hpPill">❤ 3</span>
+      <span class="pill" id="bladePill">刃 ×0</span>
+    </div>
+    <div class="score" id="scoreEl">0</div>
+    <div class="meta" id="metaEl">COMBO ×0 · 近失守卫</div>
+    <div class="stage" id="stage">
+      <canvas id="cv"></canvas>
+      <div class="toast" id="toast"></div>
+      <div class="fxword" id="fxword"></div>
+    </div>
+    <div class="hud">
+      <div class="card"><b id="killEl">0</b><span>击破</span></div>
+      <div class="card"><b id="comboEl">0</b><span>最高连斩</span></div>
+      <div class="card"><b id="pwrEl">100</b><span>火力</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn ad" id="btnRefill" style="flex:1;padding:11px;font-size:14px">▶ 广告补充刃</button>
+      <button class="btn sec" id="btnPause" style="width:92px;padding:11px;font-size:14px">暂停</button>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <div id="howMask" class="mask hidden"><div class="modal">
+    <h2>怎么玩</h2>
+    <p>① 草坪上的能量刃可点击发射<br/>② 被挡住的刃变暗，清掉前方才能射<br/>③ 敌人沿棕色 L 形轨道推进，到终点扣命（5 点生命）<br/>④ 快速清怪叠 COMBO；刃用完可看广告补充<br/>⑤ 失败后可看广告复活一次</p>
+    <button class="btn" id="howClose">知道了</button>
+  </div></div>
+
+  <div id="pauseMask" class="mask hidden"><div class="modal">
+    <h2>暂停</h2>
+    <p>防线暂停中</p>
+    <button class="btn" id="resumeBtn">继续</button>
+    <button class="btn sec" id="quitBtn">回首页</button>
+  </div></div>
+
+  <div id="overMask" class="mask hidden"><div class="modal">
+    <h2 id="overTitle">防线失守</h2>
+    <p id="overBody"></p>
+    <button class="btn ad hidden" id="reviveBtn">▶ 看广告复活（清场+补刃）</button>
+    <button class="btn" id="againBtn">再来一局</button>
+    <button class="btn sec" id="homeBtn">回首页</button>
+  </div></div>
+
+  <div id="adMask" class="adsim hidden">
+    <div style="font-size:14px;color:#8aa0c2">模拟激励广告</div>
+    <div class="t" id="adT">3</div>
+    <div style="font-size:13px;color:#5eead4" id="adLabel">看完获得奖励</div>
+  </div>
+</div>
+<script>
+(function(){
+"use strict";
+const KEY="prism_blade_v1";
+const load=()=>{try{return JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){return{}}};
+const save=(o)=>{try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}};
+let store=load();
+const $=id=>document.getElementById(id);
+$("bestHome").textContent=String(store.best||0);
+
+// ---------- theme / enemies (original geometric) ----------
+const TIERS=[
+  {name:"翠绿",color:"#34d399",glow:"#6ee7b7",dmg:1,pen:1,splash:0},
+  {name:"冰蓝",color:"#38bdf8",glow:"#7dd3fc",dmg:1,pen:2,splash:0},
+  {name:"紫晶",color:"#a78bfa",glow:"#c4b5fd",dmg:2,pen:1,splash:28},
+  {name:"金核",color:"#fbbf24",glow:"#fde68a",dmg:4,pen:1,splash:0},
+];
+const ENEMY_KINDS=[
+  {id:"cube",name:"方块侦察机",hp:1,spd:22,r:11,color:"#94a3b8",shape:"cube"},
+  {id:"hex",name:"六边粘液机",hp:2,spd:18,r:13,color:"#2dd4bf",shape:"hex"},
+  {id:"prism",name:"棱晶甲虫",hp:3,spd:30,r:14,color:"#818cf8",shape:"prism"},
+  {id:"spike",name:"尖刺搬运机",hp:5,spd:24,r:16,color:"#fb7185",shape:"spike"},
+  {id:"orb",name:"核芯球体",hp:8,spd:20,r:18,color:"#f59e0b",shape:"orb"},
+];
+
+// ---------- DOM wiring ----------
+const home=$("home"), play=$("play");
+$("btnStart").onclick=()=>startRun();
+$("btnHow").onclick=()=>$("howMask").classList.remove("hidden");
+$("howClose").onclick=()=>$("howMask").classList.add("hidden");
+$("btnPause").onclick=()=>{paused=true;$("pauseMask").classList.remove("hidden")};
+$("resumeBtn").onclick=()=>{paused=false;$("pauseMask").classList.add("hidden")};
+$("quitBtn").onclick=()=>{endToHome()};
+$("againBtn").onclick=()=>{ $("overMask").classList.add("hidden"); startRun(); };
+$("homeBtn").onclick=()=>endToHome();
+$("btnRefill").onclick=()=>showAd("补充 6 把能量刃",()=>{ refillBlades(6); toast("刃已补充 +6"); });
+$("reviveBtn").onclick=()=>showAd("复活并清场",()=>{ doRevive(); });
+
+function endToHome(){
+  running=false; paused=false;
+  $("pauseMask").classList.add("hidden");
+  $("overMask").classList.add("hidden");
+  play.classList.add("hidden"); home.classList.remove("hidden");
+  $("bestHome").textContent=String(store.best||0);
+}
+
+function showAd(label,done){
+  const m=$("adMask"); $("adLabel").textContent=label; $("adT").textContent="3";
+  m.classList.remove("hidden"); let n=3;
+  const t=setInterval(()=>{ n--; $("adT").textContent=String(n); if(n<=0){ clearInterval(t); m.classList.add("hidden"); done(); } },900);
+}
+
+function toast(t){ const e=$("toast"); e.textContent=t; e.classList.add("show"); clearTimeout(toast._); toast._=setTimeout(()=>e.classList.remove("show"),1400); }
+function bigWord(t,cls){ const e=$("fxword"); e.textContent=t; e.className="fxword show "+(cls||""); clearTimeout(bigWord._); bigWord._=setTimeout(()=>e.className="fxword",950); }
+
+// ---------- canvas / layout ----------
+const stage=$("stage"), cv=$("cv"), ctx=cv.getContext("2d");
+let W=0,H=0,dpr=1;
+function resize(){
+  const r=stage.getBoundingClientRect();
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  W=r.width; H=r.height;
+  cv.width=Math.floor(W*dpr); cv.height=Math.floor(H*dpr);
+  cv.style.width=W+"px"; cv.style.height=H+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  layoutBoard();
+}
+window.addEventListener("resize",()=>{ if(running) resize(); });
+
+// Board geometry: grass grid COLSxROWS of blades, L-path wrapping top+right then down to hero
+const COLS=5, ROWS=6;
+let cell=0, ox=0, oy=0, path=[]; // path points in px
+let hero={x:0,y:0};
+
+function layoutBoard(){
+  const pad=10;
+  const usableW=W-pad*2;
+  const usableH=H-pad*2-36; // leave strip for path feel
+  cell=Math.floor(Math.min(usableW/(COLS+1.35), usableH/(ROWS+1.2)));
+  ox=pad+cell*0.85;
+  oy=pad+cell*0.55;
+  // L path: left top -> right along top of grass -> down right side -> to hero bottom-right
+  const left=ox-cell*0.55;
+  const top=oy-cell*0.45;
+  const right=ox+COLS*cell+cell*0.35;
+  const bottom=oy+ROWS*cell+cell*0.2;
+  path=[
+    {x:left,y:top},
+    {x:right,y:top},
+    {x:right,y:bottom},
+  ];
+  hero.x=right; hero.y=Math.min(H-18, bottom+cell*0.55);
+}
+
+// ---------- game state ----------
+let running=false, paused=false, revived=false;
+let blades=[]; // {c,r,tier,alive,blocked}
+let enemies=[]; // {kind,hp,max,t,laneProgress,hitFlash}
+let beams=[]; // visual
+let particles=[];
+let floats=[]; // damage floats
+let shake=0;
+let score=0, kills=0, combo=0, maxCombo=0, comboTimer=0, wave=1, lives=3, power=100;
+let spawnAcc=0, waveLeft=0, waveCd=0, betweenWaves=false;
+let lastTs=0;
+
+function startRun(){
+  home.classList.add("hidden"); play.classList.remove("hidden");
+  running=true; paused=false; revived=false;
+  score=0; kills=0; combo=0; maxCombo=0; comboTimer=0; wave=1; lives=5; power=100;
+  enemies=[]; beams=[]; particles=[]; floats=[]; shake=0;
+  spawnAcc=0; waveLeft=0; waveCd=2.0; betweenWaves=true;
+  $("overMask").classList.add("hidden"); $("reviveBtn").classList.add("hidden");
+  resize();
+  plantBlades(10);
+  updateHud();
+  lastTs=performance.now();
+  requestAnimationFrame(loop);
+  toast("第 1 波接近中");
+}
+
+function plantBlades(n){
+  // fill random empty cells, prefer lower tiers early
+  const empties=[];
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    if(!blades.find(b=>b.alive&&b.c===c&&b.r===r)) empties.push({c,r});
+  }
+  // 前排优先，保证开局有可射刃
+  empties.sort((a,b)=> a.r-b.r || Math.random()-0.5);
+  const take=Math.min(n,empties.length);
+  for(let i=0;i<take;i++){
+    const {c,r}=empties[i];
+    const roll=Math.random();
+    let tier=0;
+    if(wave>=6 && roll>0.82) tier=3;
+    else if(wave>=4 && roll>0.7) tier=2;
+    else if(wave>=2 && roll>0.55) tier=1;
+    blades.push({c,r,tier,alive:true,blocked:false});
+  }
+  recomputeBlocked();
+}
+
+function refillBlades(n){ plantBlades(n); updateHud(); }
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+// Blocking rule (clear & original):
+// A blade fires UPWARD into the top path. It is blocked if any alive blade sits in the same column with smaller row (closer to top path).
+function recomputeBlocked(){
+  for(const b of blades){
+    if(!b.alive){ b.blocked=true; continue; }
+    b.blocked=blades.some(o=>o.alive && o.c===b.c && o.r<b.r);
+  }
+}
+
+function bladeCount(){ return blades.filter(b=>b.alive).length; }
+
+function updateHud(){
+  $("scoreEl").textContent=String(score);
+  $("wavePill").textContent="波次 "+wave;
+  $("hpPill").textContent="❤ "+lives;
+  $("bladePill").textContent="刃 ×"+bladeCount();
+  $("killEl").textContent=String(kills);
+  $("comboEl").textContent=String(maxCombo);
+  $("pwrEl").textContent=String(power);
+  $("metaEl").textContent=(combo>1?("COMBO ×"+combo+" · "):"")+(bladeCount()<=3?"刃量告急":"点亮前方刃才能开火");
+}
+
+// ---------- waves ----------
+function wavePlan(w){
+  const n=6+Math.floor(w*1.6);
+  const pool=[];
+  for(let i=0;i<n;i++){
+    let k=0;
+    const t=i/n;
+    if(w>=8 && t>0.75) k=4;
+    else if(w>=5 && t>0.55) k=3;
+    else if(w>=3 && t>0.35) k=2;
+    else if(w>=2 && t>0.2) k=1;
+    pool.push(k);
+  }
+  return pool;
+}
+let spawnQueue=[];
+
+function beginWave(){
+  betweenWaves=false;
+  spawnQueue=wavePlan(wave);
+  waveLeft=spawnQueue.length;
+  spawnAcc=0;
+  toast("第 "+wave+" 波 · "+waveLeft+" 机体");
+  if(bladeCount()<4) plantBlades(3);
+}
+
+function spawnOne(kindIdx){
+  const kind=ENEMY_KINDS[Math.min(kindIdx,ENEMY_KINDS.length-1)];
+  const mul=1+ (wave-1)*0.08;
+  enemies.push({
+    kind:kind.id, name:kind.name, shape:kind.shape, color:kind.color, r:kind.r,
+    hp:Math.ceil(kind.hp*mul), max:Math.ceil(kind.hp*mul),
+    spd:kind.spd*(1+Math.min(0.55,(wave-1)*0.04)),
+    progress:0, flash:0, dead:false
+  });
+}
+
+// path length helpers
+function pathLen(){
+  let L=0; for(let i=0;i<path.length-1;i++) L+=dist(path[i],path[i+1]); return L;
+}
+function posOnPath(p){
+  let remain=p*pathLen();
+  for(let i=0;i<path.length-1;i++){
+    const a=path[i],b=path[i+1],d=dist(a,b);
+    if(remain<=d){ const t=d?remain/d:0; return {x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t, seg:i}; }
+    remain-=d;
+  }
+  const last=path[path.length-1]; return {x:last.x,y:last.y,seg:path.length-2};
+}
+function dist(a,b){ const dx=a.x-b.x,dy=a.y-b.y; return Math.hypot(dx,dy); }
+
+// ---------- input ----------
+cv.addEventListener("pointerdown", onTap);
+function onTap(e){
+  if(!running||paused) return;
+  const rect=cv.getBoundingClientRect();
+  const x=(e.clientX-rect.left);
+  const y=(e.clientY-rect.top);
+  // hit test blades
+  let hit=null, best=1e9;
+  for(const b of blades){
+    if(!b.alive) continue;
+    const p=bladePos(b);
+    const d=Math.hypot(p.x-x,p.y-y);
+    if(d<cell*0.48 && d<best){ best=d; hit=b; }
+  }
+  if(!hit) return;
+  if(hit.blocked){
+    // 休闲优化：点到被挡刃时，自动改射同列最前方（靠轨道）的可射刃
+    const front=blades.filter(o=>o.alive&&o.c===hit.c&&!o.blocked).sort((a,c)=>a.r-c.r)[0];
+    if(front){ toast("已改射前方刃"); fireBlade(front); return; }
+    toast("被挡住 · 先清同列前方"); shake=Math.max(shake,4); return;
+  }
+  fireBlade(hit);
+}
+
+function bladePos(b){ return {x:ox+b.c*cell+cell/2, y:oy+b.r*cell+cell/2}; }
+
+function fireBlade(b){
+  b.alive=false;
+  recomputeBlocked();
+  const p=bladePos(b);
+  const tier=TIERS[b.tier];
+  const targetY=path[0].y;
+  beams.push({x:p.x,y:p.y,ty:targetY,color:tier.color,glow:tier.glow,life:0.28,w:7+b.tier*2});
+  // 命中：按「列走廊」打顶轨；右两列额外可清竖轨拐角堆
+  const band=cell*0.85;
+  let remainingPen=tier.pen;
+  const sorted=enemies.filter(en=>!en.dead).slice().sort((a,c)=>a.progress-c.progress);
+  const tryHit=(en)=>{
+    if(en.dead||remainingPen<=0) return false;
+    applyHit(en, tier.dmg, tier);
+    remainingPen--;
+    if(tier.splash>0){
+      const pos=posOnPath(en.progress);
+      for(const o of enemies){
+        if(o===en||o.dead) continue;
+        const op=posOnPath(o.progress);
+        if(Math.hypot(op.x-pos.x,op.y-pos.y)<tier.splash) applyHit(o, Math.max(1,tier.dmg-1), tier);
+      }
+    }
+    return true;
+  };
+  let hits=0;
+  // 1) 顶轨走廊
+  for(const en of sorted){
+    if(remainingPen<=0) break;
+    const pos=posOnPath(en.progress);
+    if(pos.seg===0 && Math.abs(pos.x-p.x)<=band){ if(tryHit(en)) hits++; }
+  }
+  // 2) 右两列清竖轨
+  if(b.c>=COLS-2){
+    for(const en of sorted){
+      if(remainingPen<=0) break;
+      const pos=posOnPath(en.progress);
+      if(pos.seg===1 && Math.abs(pos.x-path[1].x)<=band){ if(tryHit(en)) hits++; }
+    }
+  }
+  // 3) 全轨自瞄：仍未命中则打最近存活怪（光束视觉仍向上，伤害锁敌）
+  if(hits===0 && sorted.length){
+    let best=sorted[0], bd=1e9;
+    for(const en of sorted){
+      const pos=posOnPath(en.progress);
+      const d=Math.hypot(pos.x-p.x, pos.y-p.y);
+      if(d<bd){ bd=d; best=en; }
+    }
+    // 额外画一道锁敌线
+    const tp=posOnPath(best.progress);
+    beams.push({x:p.x,y:p.y,ty:tp.y,tx:tp.x,color:tier.color,glow:tier.glow,life:0.25,w:5+b.tier,seek:true});
+    if(tryHit(best)) hits++;
+  }
+  spawnBurst(p.x,p.y,tier.color,10);
+  shake=Math.max(shake, 5+b.tier*2);
+  power=Math.min(999, power+1);
+  updateHud();
+  if(hits===0) toast("轨道上暂无机群");
+}
+
+function applyHit(en, dmg, tier){
+  en.hp-=dmg; en.flash=0.15;
+  const pos=posOnPath(en.progress);
+  floats.push({x:pos.x,y:pos.y-10,t:0,text:"-"+dmg,color:tier.color});
+  spawnBurst(pos.x,pos.y,tier.glow,6);
+  if(en.hp<=0){ killEnemy(en); }
+}
+
+function killEnemy(en){
+  if(en.dead) return;
+  en.dead=true;
+  kills++;
+  comboTimer=1.1;
+  combo++; maxCombo=Math.max(maxCombo,combo);
+  const base=20+wave*3;
+  const pts=Math.round(base*(1+Math.min(combo,12)*0.15));
+  score+=pts;
+  if(store.best==null || score>store.best){ store.best=score; save(store); }
+  const pos=posOnPath(en.progress);
+  floats.push({x:pos.x,y:pos.y-18,t:0,text:"+"+pts,color:"#fde68a"});
+  spawnBurst(pos.x,pos.y,en.color,14);
+  shake=Math.max(shake,8);
+  if(combo===3) bigWord("Great!","exc");
+  else if(combo===5) bigWord("Excellent!","exc");
+  else if(combo>=8) bigWord("Unbelievable!","unb");
+  // near-miss bonus: killed while very close to end
+  if(en.progress>0.82){ score+=30; floats.push({x:pos.x,y:pos.y-30,t:0,text:"近失 +30",color:"#fb7185"}); toast("惊险拦截 +30"); }
+  updateHud();
+}
+
+function spawnBurst(x,y,color,n){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, sp=40+Math.random()*90;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.35+Math.random()*0.25,color,s:2+Math.random()*3});
+  }
+}
+
+function doRevive(){
+  $("overMask").classList.add("hidden");
+  revived=true; lives=1;
+  enemies.forEach(e=>e.dead=true);
+  enemies=[]; plantBlades(8);
+  betweenWaves=true; waveCd=1.5; spawnQueue=[]; waveLeft=0;
+  running=true; paused=false; lastTs=performance.now();
+  requestAnimationFrame(loop);
+  toast("已复活 · 战场清空");
+  updateHud();
+}
+
+function fail(){
+  running=false;
+  const best=store.best||0;
+  $("overTitle").textContent="防线失守";
+  $("overBody").innerHTML="本局得分 <b style='color:#5eead4;font-size:22px'>"+score+"</b><br/>最高 "+best+" · 波次 "+wave+" · 连斩 "+maxCombo+(score>=best?"<br/>🎉 新纪录！":"");
+  if(!revived) $("reviveBtn").classList.remove("hidden"); else $("reviveBtn").classList.add("hidden");
+  $("overMask").classList.remove("hidden");
+}
+
+// ---------- loop ----------
+function loop(ts){
+  if(!running) return;
+  const dt=Math.min(0.05,(ts-lastTs)/1000); lastTs=ts;
+  if(!paused){
+    tick(dt);
+    draw();
+  }
+  requestAnimationFrame(loop);
+}
+
+function tick(dt){
+  if(comboTimer>0){ comboTimer-=dt; if(comboTimer<=0) combo=0; }
+  if(shake>0) shake=Math.max(0,shake-dt*40);
+
+  // waves
+  if(betweenWaves){
+    waveCd-=dt;
+    if(waveCd<=0) beginWave();
+  } else {
+    spawnAcc+=dt;
+    const interval=Math.max(0.42, 1.15-wave*0.045);
+    if(spawnQueue.length && spawnAcc>=interval){
+      spawnAcc=0; spawnOne(spawnQueue.shift());
+    }
+    enemies=enemies.filter(e=>!(e.dead && e.flash<=0));
+    if(!spawnQueue.length && enemies.every(e=>e.dead)){
+      enemies=[];
+      betweenWaves=true; wave++; waveCd=1.4;
+      score+=50+wave*10; plantBlades(2+Math.floor(wave/3));
+      toast("波次清空 · 奖励刃已投放"); updateHud();
+      bigWord("WAVE CLEAR","");
+    }
+  }
+
+  // move enemies
+  for(const en of enemies){
+    if(en.dead) continue;
+    en.progress+= (en.spd*dt)/pathLen();
+    if(en.flash>0) en.flash-=dt;
+    if(en.progress>=1){
+      en.dead=true; lives--; updateHud(); shake=14;
+      toast("机群突入 · 生命 -1");
+      spawnBurst(hero.x,hero.y,"#fb7185",16);
+      if(lives<=0){ fail(); return; }
+    }
+  }
+  // beams / particles / floats
+  for(const b of beams){ b.life-=dt; b.y-= (b.y-b.ty)*dt*18; }
+  beams=beams.filter(b=>b.life>0);
+  for(const p of particles){ p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.96; p.vy*=0.96; }
+  particles=particles.filter(p=>p.life>0);
+  for(const f of floats){ f.t+=dt; f.y-=26*dt; }
+  floats=floats.filter(f=>f.t<0.8);
+
+  // auto mild tip when out of blades
+  if(bladeCount()===0 && Math.random()<dt*0.4){ /* idle */ }
+}
+
+// ---------- draw ----------
+function draw(){
+  const sx=(Math.random()-0.5)*shake, sy=(Math.random()-0.5)*shake;
+  ctx.save();
+  ctx.clearRect(0,0,W,H);
+  ctx.translate(sx,sy);
+
+  // ground
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#1a3a55"); g.addColorStop(1,"#0f2438");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  // grass field
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const x=ox+c*cell, y=oy+r*cell;
+    ctx.fillStyle=(r+c)%2? "#1f6b45":"#1a5c3b";
+    roundRect(x+2,y+2,cell-4,cell-4,8);
+    ctx.fill();
+    // subtle grid lines
+    ctx.strokeStyle="rgba(94,234,212,.08)"; ctx.lineWidth=1; ctx.stroke();
+  }
+
+  // L path (dirt / metal track)
+  ctx.lineJoin="round"; ctx.lineCap="round";
+  ctx.strokeStyle="#6b4f32"; ctx.lineWidth=cell*0.55;
+  ctx.beginPath(); ctx.moveTo(path[0].x,path[0].y);
+  for(let i=1;i<path.length;i++) ctx.lineTo(path[i].x,path[i].y);
+  ctx.stroke();
+  ctx.strokeStyle="#a67c52"; ctx.lineWidth=cell*0.38; ctx.stroke();
+  // path edge glow
+  ctx.strokeStyle="rgba(251,191,36,.15)"; ctx.lineWidth=cell*0.6; ctx.stroke();
+
+  // hero (chibi geometric pilot — not copied)
+  drawHero(hero.x, hero.y);
+
+  // blades
+  for(const b of blades){
+    if(!b.alive) continue;
+    drawBlade(b);
+  }
+
+  // enemies
+  for(const en of enemies){
+    if(en.dead && en.flash<=0) continue;
+    const p=posOnPath(Math.min(0.999,en.progress));
+    drawEnemy(en,p.x,p.y);
+  }
+
+  // beams
+  for(const b of beams){
+    ctx.save();
+    const ex=b.seek&&b.tx!=null?b.tx:b.x, ey=(b.ty!=null?b.ty:b.y)-8;
+    ctx.strokeStyle=b.glow; ctx.globalAlpha=Math.max(0,b.life*4); ctx.lineWidth=b.w+6;
+    ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(ex,ey); ctx.stroke();
+    ctx.strokeStyle=b.color; ctx.lineWidth=b.w;
+    ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(ex,ey); ctx.stroke();
+    ctx.fillStyle="#fff"; ctx.globalAlpha=0.9;
+    ctx.beginPath(); ctx.arc(ex,ey,4,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // particles
+  for(const p of particles){
+    ctx.globalAlpha=Math.max(0,p.life*2);
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s);
+  }
+  ctx.globalAlpha=1;
+
+  // floats
+  for(const f of floats){
+    ctx.globalAlpha=1-f.t/0.8;
+    ctx.fillStyle=f.color; ctx.font="bold 13px system-ui"; ctx.textAlign="center";
+    ctx.fillText(f.text,f.x,f.y);
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+function drawBlade(b){
+  const p=bladePos(b); const t=TIERS[b.tier];
+  const dim=b.blocked;
+  ctx.save();
+  if(dim) ctx.globalAlpha=0.38;
+  // glow
+  ctx.shadowColor=t.glow; ctx.shadowBlur=dim?0:12;
+  // sword body pointing up
+  ctx.translate(p.x,p.y);
+  ctx.fillStyle=t.color;
+  ctx.beginPath();
+  ctx.moveTo(0,-cell*0.38);
+  ctx.lineTo(cell*0.12,cell*0.08);
+  ctx.lineTo(cell*0.04,cell*0.08);
+  ctx.lineTo(cell*0.04,cell*0.22);
+  ctx.lineTo(-cell*0.04,cell*0.22);
+  ctx.lineTo(-cell*0.04,cell*0.08);
+  ctx.lineTo(-cell*0.12,cell*0.08);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle="#041018"; ctx.lineWidth=2.5; ctx.stroke();
+  // hilt
+  ctx.fillStyle="#e2e8f0";
+  ctx.fillRect(-cell*0.1,cell*0.08,cell*0.2,cell*0.06);
+  ctx.strokeRect(-cell*0.1,cell*0.08,cell*0.2,cell*0.06);
+  if(dim){
+    ctx.globalAlpha=0.85;
+    ctx.fillStyle="rgba(15,23,42,.55)";
+    ctx.beginPath(); ctx.arc(0,0,cell*0.2,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle="#94a3b8"; ctx.font="bold 12px system-ui"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("挡",0,0);
+  }
+  ctx.restore();
+}
+
+function drawHero(x,y){
+  ctx.save(); ctx.translate(x,y);
+  // body capsule
+  ctx.fillStyle="#5eead4"; ctx.strokeStyle="#041018"; ctx.lineWidth=2.5;
+  roundRect(-14,-10,28,26,8); ctx.fill(); ctx.stroke();
+  // head
+  ctx.fillStyle="#f8fafc"; ctx.beginPath(); ctx.arc(0,-18,11,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  // visor
+  ctx.fillStyle="#38bdf8"; roundRect(-7,-21,14,6,3); ctx.fill();
+  // arm pointing
+  ctx.strokeStyle="#5eead4"; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(12,0); ctx.lineTo(22,-8); ctx.stroke();
+  ctx.restore();
+}
+
+function drawEnemy(en,x,y){
+  ctx.save(); ctx.translate(x,y);
+  if(en.flash>0){ ctx.globalAlpha=0.7+Math.sin(en.flash*40)*0.3; }
+  ctx.strokeStyle="#041018"; ctx.lineWidth=2.5; ctx.fillStyle=en.color;
+  const r=en.r;
+  if(en.shape==="cube"){
+    roundRect(-r,-r,r*2,r*2,4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle="#041018"; ctx.fillRect(-3,-3,6,6);
+  } else if(en.shape==="hex"){
+    hexPath(0,0,r); ctx.fill(); ctx.stroke();
+    ctx.fillStyle="rgba(255,255,255,.35)"; hexPath(0,0,r*0.4); ctx.fill();
+  } else if(en.shape==="prism"){
+    ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(r,r*0.7); ctx.lineTo(-r,r*0.7); ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else if(en.shape==="spike"){
+    ctx.beginPath();
+    for(let i=0;i<8;i++){ const a=i*Math.PI/4, rr=i%2?r:r*0.55; const px=Math.cos(a)*rr, py=Math.sin(a)*rr; i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle="#fde68a"; ctx.beginPath(); ctx.arc(0,0,r*0.35,0,Math.PI*2); ctx.fill();
+  }
+  // hp bar if hurt
+  if(en.hp<en.max){
+    const bw=r*2; ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(-bw/2,r+4,bw,4);
+    ctx.fillStyle="#4ade80"; ctx.fillRect(-bw/2,r+4,bw*(en.hp/en.max),4);
+  }
+  ctx.restore();
+}
+function hexPath(x,y,r){
+  ctx.beginPath();
+  for(let i=0;i<6;i++){ const a=Math.PI/6+i*Math.PI/3; const px=x+Math.cos(a)*r, py=y+Math.sin(a)*r; i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+  ctx.closePath();
+}
+
+})(); 
+</script>
+</body>
+</html>
